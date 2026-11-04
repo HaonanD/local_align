@@ -19,7 +19,7 @@ local_align is a single-file, offline protein multiple sequence alignment tool. 
 
 ## Quick start
 
-Download [`local_align.html`](local_align.html), or use the deployed page link.
+Download [`local_align.html`](local_align.html), or open the deployed page: https://haonand.github.io/local_align/.
 
 ## Implementation
 
