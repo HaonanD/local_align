@@ -1,0 +1,1573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>local_align · Protein MSA</title>
+<!--
+  Protein MSA Studio — single-file Clustal Omega (WebAssembly)
+  Clustal Omega 1.2.4 is Copyright (C) 2010 UCD Dublin and contributors.
+  It is free software under the GNU General Public License, version 2 or
+  (at your option) any later version. This page is distributed under the
+  same license. Upstream: https://github.com/GSLBiotech/clustal-omega
+-->
+<style>
+
+:root{
+  --bg:#f3f7f6;
+  --panel:rgba(255,255,255,.86);
+  --ink:#14252c;
+  --muted:#647780;
+  --faint:#90a1a8;
+  --line:#dce7e5;
+  --line-strong:#c8d9d5;
+  --teal:#0c7a72;
+  --teal-dark:#075e58;
+  --teal-soft:#e3f3ef;
+  --navy:#132f3b;
+  --amber:#b96f16;
+  --red:#b3403d;
+  --shadow:0 20px 60px rgba(16,54,62,.09);
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  min-height:100vh;
+  color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  background:
+    radial-gradient(1100px 650px at 6% -8%, #d9f1ea 0, rgba(217,241,234,0) 58%),
+    radial-gradient(900px 600px at 102% 2%, #e7edf8 0, rgba(231,237,248,0) 52%),
+    var(--bg);
+  -webkit-font-smoothing:antialiased;
+}
+body::before{
+  content:"";
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  opacity:.34;
+  background-image:
+    linear-gradient(rgba(20,70,75,.035) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(20,70,75,.035) 1px,transparent 1px);
+  background-size:44px 44px;
+  mask-image:linear-gradient(to bottom,black,transparent 75%);
+}
+[hidden]{display:none!important}
+button,select,textarea,input{font:inherit}
+button{cursor:pointer}
+a{color:var(--teal-dark)}
+::selection{background:#bfe8df;color:var(--navy)}
+
+.shell{width:min(1480px,calc(100% - 48px));margin:0 auto;position:relative;z-index:1}
+.top{
+  width:min(1480px,calc(100% - 48px));
+  margin:0 auto;
+  padding:26px 0 10px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:20px;
+}
+.brand{display:flex;align-items:center;gap:13px;min-width:0}
+.logo{
+  width:46px;height:46px;border-radius:14px;flex:none;
+  background:linear-gradient(145deg,#0e7f75,#0a4f52);
+  box-shadow:0 10px 24px rgba(8,95,89,.22),inset 0 1px 0 rgba(255,255,255,.22);
+  display:grid;place-items:center;
+}
+.logo svg{width:28px;height:28px;display:block}
+.brand-copy{min-width:0}
+.eyebrow{
+  font-size:10px;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--teal-dark);font-weight:750;
+}
+.brand h1{
+  margin:3px 0 0;font-size:19px;line-height:1.1;letter-spacing:-.025em;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.brand h1 span{
+  font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.06em;
+  color:#fff;background:var(--teal);border-radius:5px;padding:3px 6px;
+  vertical-align:2px;margin-left:5px;
+}
+.top-meta{
+  display:flex;align-items:center;gap:8px;flex:none;
+  font-size:11px;font-weight:650;color:var(--muted);
+  border:1px solid var(--line);background:rgba(255,255,255,.66);
+  padding:8px 11px;border-radius:999px;backdrop-filter:blur(12px);
+}
+.live-dot{width:6px;height:6px;border-radius:50%;background:#22a06b;box-shadow:0 0 0 4px rgba(34,160,107,.12)}
+
+.hero{
+  display:grid;grid-template-columns:minmax(0,1.2fr) minmax(280px,.8fr);
+  align-items:end;gap:28px;padding:36px 0 30px;
+}
+.kicker{
+  margin:0 0 12px;color:var(--teal-dark);font-size:10px;font-weight:800;
+  letter-spacing:.2em;text-transform:uppercase;display:flex;align-items:center;gap:9px;
+}
+.kicker::before{content:"";width:24px;height:1px;background:var(--teal)}
+.hero h2{
+  margin:0;font-size:clamp(34px,4.3vw,58px);line-height:.98;letter-spacing:-.055em;
+  font-weight:760;color:var(--navy);
+}
+.hero h2 em{font-style:normal;color:var(--teal);position:relative;white-space:nowrap}
+.hero h2 em::after{
+  content:"";position:absolute;left:0;right:2px;bottom:.02em;height:.13em;
+  background:#9dddd0;border-radius:99px;z-index:-1;
+}
+.lede{
+  margin:0 0 4px;color:var(--muted);font-size:14px;line-height:1.75;max-width:42ch;
+}
+.lede b{color:var(--ink);font-weight:680}
+
+.workspace{
+  display:grid;grid-template-columns:minmax(350px,420px) minmax(0,1fr);
+  gap:22px;align-items:start;padding-bottom:38px;
+}
+.panel{
+  background:var(--panel);
+  border:1px solid rgba(255,255,255,.9);
+  border-radius:22px;
+  box-shadow:var(--shadow);
+  backdrop-filter:blur(18px);
+}
+.input-panel{padding:22px;position:sticky;top:20px}
+.result-panel{padding:22px;min-height:610px}
+
+.section-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.section-title{display:flex;align-items:center;gap:9px;margin:0;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--navy);font-weight:800}
+.step{
+  width:21px;height:21px;border-radius:7px;background:var(--teal-soft);color:var(--teal-dark);
+  font-family:var(--mono);font-size:10px;display:grid;place-items:center;flex:none;
+}
+.ghost{
+  border:1px solid var(--line);background:rgba(255,255,255,.7);color:var(--muted);
+  border-radius:8px;padding:6px 9px;font-size:11px;font-weight:650;
+  transition:.18s ease;
+}
+.ghost:hover{border-color:var(--line-strong);color:var(--teal-dark);background:#fff}
+.ghost.small{padding:5px 8px;font-size:10.5px}
+
+.input-actions{display:flex;gap:6px;align-items:center}
+textarea#seqInput{
+  width:100%;height:192px;resize:vertical;display:block;
+  border:1px solid var(--line);border-radius:13px;
+  background:#f8fbfa;color:var(--ink);
+  padding:13px 14px;font-family:var(--mono);font-size:11.5px;line-height:1.65;
+  outline:none;transition:.18s ease;
+  box-shadow:inset 0 1px 2px rgba(16,54,62,.03);
+}
+textarea#seqInput:focus{border-color:#8fc9bf;background:#fff;box-shadow:0 0 0 4px rgba(12,122,114,.09)}
+textarea#seqInput::placeholder{color:#a0afb2}
+.hint{font-size:10.5px;color:var(--faint);line-height:1.6;margin:8px 2px 0}
+.hint code{font-family:var(--mono);background:#eef4f2;border-radius:4px;padding:1px 4px;color:#4b6666}
+
+.parse-info{
+  display:flex;align-items:center;gap:7px;flex-wrap:wrap;
+  margin:10px 0 0;padding:8px 10px;border-radius:9px;
+  background:#f3f8f7;border:1px solid #e5efed;
+  font-size:10.5px;color:var(--muted);min-height:34px;
+}
+.parse-info strong{color:var(--teal-dark);font-weight:750}
+.parse-info.error{background:#fff3f3;border-color:#f3d4d2;color:#9e3b38}
+.parse-info.warn{background:#fff9ee;border-color:#f0dfc2;color:#8a5a18}
+.chips{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}
+.chip{
+  max-width:100%;display:inline-flex;align-items:center;gap:5px;
+  border:1px solid #dcebe8;background:#f2f9f7;color:#3e6663;
+  border-radius:6px;padding:3px 6px;font-size:9.5px;font-family:var(--mono);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.chip i{width:4px;height:4px;border-radius:50%;background:#31a08d;flex:none}
+
+.divider{height:1px;background:linear-gradient(90deg,transparent,var(--line),transparent);margin:18px 0}
+.controls{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.field label{display:block;font-size:10px;font-weight:750;color:#61747b;letter-spacing:.03em;margin:0 0 5px 2px}
+.field select{
+  width:100%;border:1px solid var(--line);border-radius:9px;background:#fbfdfc;
+  color:var(--ink);padding:8px 9px;font-size:11px;outline:none;
+  appearance:none;
+  background-image:linear-gradient(45deg,transparent 50%,#7b9096 50%),linear-gradient(135deg,#7b9096 50%,transparent 50%);
+  background-position:calc(100% - 12px) 50%,calc(100% - 8px) 50%;
+  background-size:4px 4px,4px 4px;background-repeat:no-repeat;
+}
+.field select:focus{border-color:#8fc9bf;box-shadow:0 0 0 3px rgba(12,122,114,.08)}
+.field-note{grid-column:1/-1;font-size:9.5px;color:var(--faint);line-height:1.55;margin-top:-2px}
+
+.run-btn{
+  width:100%;margin-top:16px;border:0;border-radius:12px;
+  background:linear-gradient(135deg,#0c7a72,#075b58);
+  color:#fff;padding:12px 16px;font-weight:760;font-size:12.5px;letter-spacing:.01em;
+  display:flex;align-items:center;justify-content:center;gap:9px;
+  box-shadow:0 12px 26px rgba(7,91,88,.22),inset 0 1px 0 rgba(255,255,255,.18);
+  transition:.18s ease;
+}
+.run-btn:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 16px 30px rgba(7,91,88,.26)}
+.run-btn:active:not(:disabled){transform:translateY(0)}
+.run-btn:disabled{opacity:.6;cursor:not-allowed;box-shadow:none}
+.run-btn .arrow{font-size:16px;line-height:1;transition:.18s ease}
+.run-btn:hover .arrow{transform:translateX(2px)}
+.spinner{
+  width:13px;height:13px;border-radius:50%;border:2px solid rgba(255,255,255,.35);
+  border-top-color:#fff;animation:spin .8s linear infinite;display:inline-block;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.run-note{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:8px;font-size:9.5px;color:var(--faint)}
+
+details.license{margin-top:15px;border-top:1px solid #edf3f1;padding-top:12px}
+details.license summary{
+  cursor:pointer;list-style:none;font-size:9.5px;color:#7c9095;
+  display:flex;align-items:center;gap:6px;
+}
+details.license summary::-webkit-details-marker{display:none}
+details.license summary::before{content:"+";font-family:var(--mono);color:var(--teal);font-size:11px}
+details.license[open] summary::before{content:"}
+details.license p{font-size:9.5px;line-height:1.65;color:#7c9095;margin:8px 1px 0}
+details.license a{color:#4e817b;text-decoration:none;border-bottom:1px solid #bfded8}
+
+/* Result panel */
+.result-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:14px}
+.result-head h2{margin:0;font-size:17px;letter-spacing:-.02em;color:var(--navy)}
+.result-head p{margin:4px 0 0;font-size:10.5px;color:var(--faint);line-height:1.5}
+.result-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.icon-btn{
+  border:1px solid var(--line);background:#fff;color:#51666d;border-radius:8px;
+  padding:6px 9px;font-size:10px;font-weight:650;display:inline-flex;align-items:center;gap:5px;
+  transition:.16s ease;white-space:nowrap;
+}
+.icon-btn:hover{border-color:#acd2cb;color:var(--teal-dark);background:#f8fcfb}
+.icon-btn:disabled{opacity:.45;cursor:not-allowed}
+.icon-btn svg{width:12px;height:12px}
+
+.stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin:16px 0 13px}
+.stat{
+  border:1px solid var(--line);background:linear-gradient(180deg,#fff,#fbfdfc);
+  border-radius:11px;padding:10px 11px;min-width:0;
+}
+.stat .label{font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;color:#93a4a8;font-weight:750;white-space:nowrap}
+.stat strong{display:block;margin-top:5px;font-size:19px;line-height:1;letter-spacing:-.04em;color:var(--navy);font-variant-numeric:tabular-nums}
+.stat small{display:block;margin-top:5px;font-size:8.5px;color:#92a3a7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stat.accent{background:linear-gradient(150deg,#0e7d74,#075b58);border-color:#075b58}
+.stat.accent .label,.stat.accent small{color:rgba(255,255,255,.62)}
+.stat.accent strong{color:#fff}
+
+.legend{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:9px;color:#7e9196;margin:0 0 12px}
+.legend .item{display:inline-flex;align-items:center;gap:4px}
+.legend .sw{width:9px;height:9px;border-radius:2px;display:inline-block}
+.sw.id{background:#c9f1e2;border:1px solid #9bdfc8}
+.sw.strong{background:#dcebfa;border:1px solid #b7d4f2}
+.sw.weak{background:#fdf1d8;border:1px solid #ecd4a4}
+.sw.gap{background:#eef2f4;border:1px solid #dce4e7}
+.aa-legend{display:flex;gap:4px;flex-wrap:wrap;margin-left:auto}
+.aa-legend span{font-family:var(--mono);font-size:8.5px;font-weight:750;padding:1px 3px;border-radius:3px;background:#f4f8f7}
+
+.msa-scroll{overflow:auto;border:1px solid var(--line);border-radius:12px;background:#fcfefd;max-height:calc(100vh - 250px)}
+.msa-inner{min-width:max-content;padding:4px 0}
+.msa-block{padding:10px 12px 12px;border-bottom:1px dashed #e6efed}
+.msa-block:last-child{border-bottom:0}
+.block-head{
+  display:flex;justify-content:space-between;align-items:center;
+  font-family:var(--mono);font-size:8.5px;color:#a3b2b5;letter-spacing:.04em;
+  padding:0 2px 6px;
+}
+.msa-row{display:grid;grid-template-columns:112px minmax(0,1fr);align-items:center;min-height:19px}
+.msa-name{
+  font-family:var(--mono);font-size:9.5px;font-weight:700;color:#4e666c;
+  padding-right:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.msa-name .idx{color:#a4b3b6;font-weight:500;margin-right:4px}
+.msa-seq{
+  font-family:var(--mono);font-size:12.5px;line-height:1.55;letter-spacing:0;
+  white-space:nowrap;font-variant-ligatures:none;
+}
+.msa-seq .c{
+  display:inline-block;width:1.08ch;text-align:center;border-radius:2px;
+  color:#344b51;
+}
+.msa-seq .c.bg-id{background:#c9f1e2}
+.msa-seq .c.bg-strong{background:#e4effb}
+.msa-seq .c.bg-weak{background:#fdf3df}
+.msa-seq .c.is-gap{color:#b2c0c4}
+.msa-seq .c.is-gap.bg-gap{background:#f0f4f5}
+.aa-hydro{color:#1d5f9e!important}
+.aa-aromatic{color:#0b7285!important}
+.aa-pos{color:#b23a3a!important}
+.aa-neg{color:#9a3f8a!important}
+.aa-polar{color:#247a48!important}
+.aa-cys{color:#b5651d!important}
+.aa-special{color:#8b6a12!important}
+.aa-other{color:#6f7f84!important}
+.track-row{margin-top:1px}
+.track{
+  font-family:var(--mono);font-size:12.5px;line-height:1.2;white-space:nowrap;
+  color:#c0cccf;letter-spacing:0;
+}
+.track .t{display:inline-block;width:1.08ch;text-align:center}
+.track .t.id{color:#0e8a66;font-weight:800}
+.track .t.strong{color:#3d74b8;font-weight:700}
+.track .t.weak{color:#b78a3c}
+.render-note{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 2px 0;font-size:9.5px;color:var(--faint)}
+
+/* Empty state */
+.empty{
+  min-height:540px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;padding:30px 20px;position:relative;overflow:hidden;
+}
+.empty::before{
+  content:"";position:absolute;width:340px;height:340px;border-radius:50%;
+  background:radial-gradient(circle,rgba(12,122,114,.09),rgba(12,122,114,0) 68%);
+}
+.empty-art{position:relative;width:250px;height:138px;margin-bottom:22px}
+.empty-art .bar{
+  position:absolute;left:18px;right:18px;height:5px;border-radius:99px;
+  background:#cfe6e1;transform-origin:left;
+  animation:drift 5s ease-in-out infinite;
+}
+.empty-art .bar:nth-child(1){top:28px;width:78%;background:#0c7a72;opacity:.75}
+.empty-art .bar:nth-child(2){top:47px;width:64%;animation-delay:-1.2s;opacity:.55}
+.empty-art .bar:nth-child(3){top:66px;width:88%;animation-delay:-2.4s;opacity:.75}
+.empty-art .bar:nth-child(4){top:85px;width:54%;animation-delay:-3.6s;opacity:.45}
+.empty-art .bar:nth-child(5){top:104px;width:72%;animation-delay:-4.8s;opacity:.65}
+.empty-art .pin{
+  position:absolute;top:22px;left:18px;width:2px;height:88px;
+  background:linear-gradient(#0c7a72,transparent);opacity:.25;
+}
+@keyframes drift{0%,100%{transform:scaleX(1)}50%{transform:scaleX(.94)}}
+.empty h3{margin:0 0 7px;font-size:17px;letter-spacing:-.025em;color:var(--navy)}
+.empty p{margin:0;max-width:38ch;font-size:11.5px;line-height:1.7;color:#809297}
+.empty .hint-keys{display:flex;gap:6px;margin-top:14px;flex-wrap:wrap;justify-content:center}
+kbd{font-family:var(--mono);font-size:9px;border:1px solid #d7e3e0;border-bottom-width:2px;background:#fff;border-radius:4px;padding:2px 5px;color:#64777d}
+
+.error-box{
+  margin:14px 0;padding:12px 13px;border:1px solid #f0d2cf;background:#fff5f4;
+  border-radius:10px;color:#9b3d39;font-size:10.5px;line-height:1.65;
+  white-space:pre-wrap;word-break:break-word;
+}
+.running{
+  min-height:540px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:14px;text-align:center;
+}
+.running .ring{
+  width:42px;height:42px;border-radius:50%;border:3px solid #d8ebe7;border-top-color:var(--teal);
+  animation:spin 1s linear infinite;
+}
+.running h3{margin:0;font-size:14px;color:var(--navy)}
+.running p{margin:0;font-size:10.5px;color:var(--faint)}
+.running .timer{font-family:var(--mono);font-size:10px;color:var(--teal-dark)}
+
+.toast{
+  position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(12px);
+  background:#17343b;color:#fff;font-size:11px;font-weight:600;
+  padding:9px 13px;border-radius:9px;opacity:0;pointer-events:none;
+  transition:.22s ease;z-index:50;box-shadow:0 10px 30px rgba(0,0,0,.18);
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+footer{
+  width:min(1480px,calc(100% - 48px));margin:0 auto;
+  border-top:1px solid rgba(200,217,213,.7);
+  padding:17px 0 28px;display:flex;justify-content:space-between;gap:18px;
+  font-size:9.5px;color:#8b9da1;flex-wrap:wrap;
+}
+footer code{font-family:var(--mono);font-size:9px;color:#5d7479}
+footer a{text-decoration:none;border-bottom:1px solid #cfe1dd}
+
+@media (max-width:1120px){
+  .stats{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .stat:nth-child(4),.stat:nth-child(5){grid-column:span 1}
+}
+@media (max-width:920px){
+  .shell,.top,footer{width:min(100% - 28px,1480px)}
+  .hero{grid-template-columns:1fr;gap:14px;padding:24px 0 22px}
+  .hero .lede{max-width:60ch}
+  .workspace{grid-template-columns:1fr}
+  .input-panel{position:static}
+  .result-panel{min-height:520px}
+  .msa-scroll{max-height:none}
+}
+@media (max-width:620px){
+  .top-meta{display:none}
+  .brand h1{font-size:16px}
+  .hero h2{font-size:clamp(30px,10vw,44px)}
+  .input-panel,.result-panel{padding:16px;border-radius:17px}
+  .controls{grid-template-columns:1fr}
+  .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .stat:nth-child(5){grid-column:span 2}
+  .result-head{flex-direction:column}
+  .result-actions{justify-content:flex-start}
+  .msa-row{grid-template-columns:78px minmax(0,1fr)}
+  .msa-name{font-size:8.5px}
+  .msa-seq{font-size:11.5px}
+  .track{font-size:11.5px}
+  textarea#seqInput{height:170px}
+}
+
+
+/* ---- draw_alignment() visual language: continuous conservation tiles, warm gray gaps ---- */
+.result-panel{background:#fff}
+.msa-scroll{
+  border:1px solid #e5e9f2;
+  border-radius:8px;
+  background:#fff;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.8);
+}
+.msa-inner{padding:10px 0 12px}
+.msa-block{padding:7px 12px 11px;border:0}
+.block-head{display:none}
+.msa-row{
+  display:flex;
+  align-items:center;
+  min-height:1.62em;
+  margin:0;
+  gap:0;
+}
+.msa-row + .msa-row{margin-top:1px}
+.msa-name{
+  flex:0 0 var(--label-w,132px);
+  width:var(--label-w,132px);
+  font-family:Consolas,ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-weight:700;
+  font-size:10px;
+  color:#33363B;
+  text-align:right;
+  padding-right:8px;
+  line-height:1.35;
+  letter-spacing:0;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  align-self:center;
+}
+.msa-seq{
+  flex:1 1 auto;
+  display:flex;
+  align-items:center;
+  gap:0;
+  font-family:Consolas,ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-size:13.5px;
+  line-height:1;
+  white-space:nowrap;
+  font-variant-ligatures:none;
+}
+.msa-seq .c{
+  flex:0 0 var(--cell-w,8.6px);
+  width:var(--cell-w,8.6px);
+  height:1.34em;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:0;
+  color:#33363B;
+  font-weight:400;
+  background:transparent;
+  padding:0;
+  margin:0;
+}
+.msa-seq .c.is-gap{color:#33363B;opacity:1}
+.track-row,.track{display:none!important}
+.legend .gradbar{
+  width:110px;
+  height:9px;
+  border-radius:2px;
+  border:1px solid #dce2f0;
+  background:linear-gradient(90deg,#F4F6FB 0%,#6A78D1 100%);
+  display:inline-block;
+}
+.legend .grad-label{font-family:var(--mono);font-size:8px;color:#8a96ad}
+.legend .sw.gap{background:#EDE9E3;border:1px solid #ddd6cc}
+.legend .note{font-size:8.5px;color:#9aa5b8;margin-left:2px}
+.legend .leg-title{font-weight:750;color:#5f6b82;font-size:8.5px;letter-spacing:.04em}
+.workspace{
+  display:flex;
+  flex-direction:column;
+  gap:22px;
+}
+.input-panel{
+  position:static;
+  width:100%;
+}
+.result-panel{width:100%}
+@media (max-width:680px){
+  .msa-name{font-size:9px;padding-right:6px}
+  .msa-seq{font-size:11.5px}
+}
+</style>
+</head>
+<body style="margin:0;background:#f3f7f6;color:#14252c;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif">
+<div class="shell">
+  <section class="hero" style="display:block">
+    <div>
+      <h2>Protein Multiple Sequence Alignment</h2>
+    </div>
+  </section>
+
+  <div class="workspace" style="display:flex;flex-direction:column;gap:22px">
+    <aside class="panel input-panel" style="position:static;width:100%;box-sizing:border-box;background:#fff;border:1px solid #e5e9f2;border-radius:18px;padding:20px">
+      <div class="section-head">
+        <h2 class="section-title"><span class="step">01</span>Input sequences<sup title="Paste FASTA and run Clustal Omega 1.2.4 locally." style="cursor:help;color:#0c7a72;font-size:10px;margin-left:2px">!</sup></h2>
+        <div class="input-actions">
+          <button class="ghost small" id="loadExample" type="button">Example</button>
+          <button class="ghost small" id="clearBtn" type="button">Clear</button>
+        </div>
+      </div>
+      <textarea id="seqInput" spellcheck="false" autocomplete="off" style="width:100%;height:170px;box-sizing:border-box;border:1px solid #dce7e5;border-radius:10px;padding:10px;font-family:Consolas,ui-monospace,monospace;font-size:11.5px;line-height:1.6;background:#f8fbfa;color:#14252c;resize:vertical" placeholder=">HBA_HUMAN
+MVLSPADKTNVKAAWGKVGAHAGEYGAEALERMFLSFPTTKTYFPHFDLSHGSAQVKGHGKKVADALTNAVAHVDDMPNALSALSDLHAHKLRVDPVNFKLLSHCLLVTLAAHLPAEFTPAVHASLDKFLASVSTVLTSKYR
+
+>HBB_HUMAN
+MVHLTPEEKSAVTALWGKVNVDEVGGEALGRLLVVYPWTQRFFESFGDLSTPDAVMGNPKVKAHGKKVLGAFSDGLAHLDNLKGTFATLSELHCDKLHVDPENFRLLGNVLVCVLAHHFGKEFTPPVQAAYQKVVAGVANALAHKYH"></textarea>
+      <p class="hint">FASTA · at least 2 sequences · ID is the first token · <button class="ghost small" id="openFile" type="button" style="padding:1px 5px">Open file</button></p>
+      <input type="file" id="fileInput" accept=".fa,.fasta,.faa,.fas,.txt,.aln" hidden>
+      <div class="parse-info" id="parseInfo" aria-live="polite">Waiting for input</div>
+      <div class="chips" id="seqChips"></div>
+
+      <div class="divider"></div>
+
+      <div class="section-head" style="margin-bottom:10px">
+        <h2 class="section-title"><span class="step">02</span>Alignment settings</h2>
+      </div>
+      <div class="controls" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px">
+        <div class="field" style="min-width:0">
+          <label for="seqType">Sequence type</label>
+          <select id="seqType">
+            <option value="auto">Auto</option>
+            <option value="Protein">Protein</option>
+            <option value="DNA">DNA</option>
+            <option value="RNA">RNA</option>
+          </select>
+        </div>
+        <div class="field" style="min-width:0">
+          <label for="iterations">Iterations</label>
+          <select id="iterations">
+            <option value="0">Off</option>
+            <option value="1">1 round</option>
+            <option value="2">2 rounds</option>
+          </select>
+        </div>
+        <div class="field" style="min-width:0">
+          <label for="outputOrder">Sequence order</label>
+          <select id="outputOrder">
+            <option value="input">Input order</option>
+            <option value="tree">From alignment</option>
+          </select>
+        </div>
+      </div>
+
+      <button class="run-btn" id="runBtn" type="button" style="width:100%;margin-top:16px;border:0;border-radius:10px;background:linear-gradient(135deg,#0c7a72,#075b58);color:#fff;padding:12px 16px;font-weight:700;font-size:13px;cursor:pointer">
+        <span id="runLabel">Align</span><span class="arrow">→</span>
+      </button>
+    </aside>
+
+    <section class="panel result-panel" id="resultPanel" aria-live="polite" style="width:100%;box-sizing:border-box;background:#fff;border:1px solid #e5e9f2;border-radius:18px;padding:20px">
+      <div class="empty" id="emptyState">
+        <div class="empty-art" aria-hidden="true">
+          <div class="pin"></div>
+          <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+        </div>
+        <h3>Paste FASTA to start</h3>
+        <p>At least 2 sequences.</p>
+        <div class="hint-keys"><kbd>Ctrl</kbd><span style="font-size:9.5px;color:#9aabad">+</span><kbd>Enter</kbd><span style="font-size:9.5px;color:#9aabad">Run</span></div>
+      </div>
+
+      <div class="running" id="runningState" hidden>
+        <div class="ring"></div>
+        <h3>Aligning…</h3>
+        <p>First run loads WASM.</p>
+        <div class="timer" id="runTimer">0.0 s</div>
+      </div>
+
+      <div id="resultContent" hidden>
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin:0 0 12px">
+          <div>
+            <h2 id="resultTitle" style="margin:0;font-size:20px;line-height:1.2;letter-spacing:-.02em;color:#14252c">Alignment</h2>
+            <p id="resultMeta" style="margin:5px 0 0;font-size:11px;line-height:1.5;color:#7b8d93"></p>
+          </div>
+          <div id="alignmentActions" style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+            <button id="copyBtn" type="button" style="display:inline-flex;align-items:center;gap:5px;border:1px solid #dce7e5;background:#fff;color:#51666d;border-radius:8px;padding:6px 9px;font-size:10px;font-weight:650;line-height:1.2;cursor:pointer;white-space:nowrap">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+              Copy
+            </button>
+            <button id="downloadFasta" type="button" style="display:inline-flex;align-items:center;gap:5px;border:1px solid #dce7e5;background:#fff;color:#51666d;border-radius:8px;padding:6px 9px;font-size:10px;font-weight:650;line-height:1.2;cursor:pointer;white-space:nowrap">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+              FASTA
+            </button>
+            <button id="downloadClustal" type="button" style="display:inline-flex;align-items:center;gap:5px;border:1px solid #dce7e5;background:#fff;color:#51666d;border-radius:8px;padding:6px 9px;font-size:10px;font-weight:650;line-height:1.2;cursor:pointer;white-space:nowrap">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+              CLUSTAL
+            </button>
+          </div>
+        </div>
+
+        <div id="tabs" role="tablist" style="display:flex;gap:5px;flex-wrap:wrap;border-bottom:1px solid #e5e9f2;padding-bottom:8px;margin:0 0 12px">
+          <button type="button" data-tab="alignment" role="tab" aria-selected="true" style="border:1px solid #0c7a72;background:#0c7a72;color:#fff;border-radius:8px;padding:7px 12px;font-size:11px;font-weight:700;cursor:pointer">Alignment</button>
+          <button type="button" data-tab="tree" role="tab" aria-selected="false" style="border:1px solid #dce7e5;background:#fff;color:#51666d;border-radius:8px;padding:7px 12px;font-size:11px;font-weight:700;cursor:pointer">Phylogenetic tree</button>
+          <button type="button" data-tab="matrix" role="tab" aria-selected="false" style="border:1px solid #dce7e5;background:#fff;color:#51666d;border-radius:8px;padding:7px 12px;font-size:11px;font-weight:700;cursor:pointer">Identity matrix</button>
+        </div>
+
+        <div id="alignmentPane">
+          <div class="stats" id="stats" style="display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 10px"></div>
+          <div class="legend" id="legend" style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:0 0 12px;font-size:10px;color:#7b8d93"></div>
+          <div class="msa-scroll" id="msaScroll" style="border:1px solid #e5e9f2;border-radius:8px;background:#fff;overflow:auto;max-height:calc(100vh - 280px)">
+            <div class="msa-inner" id="alignmentView" style="padding:10px 0 12px"></div>
+          </div>
+          <div class="render-note" id="renderNote" hidden style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 2px 0;font-size:10px;color:#8a9aa0"></div>
+        </div>
+
+        <div id="treePane" style="display:none">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin:0 0 10px">
+            <div style="font-size:13px;font-weight:750;color:#14252c">Phylogenetic tree</div>
+            <button id="downloadTree" type="button" style="border:1px solid #dce7e5;background:#fff;color:#51666d;border-radius:8px;padding:6px 9px;font-size:10px;font-weight:650;cursor:pointer;white-space:nowrap">Download Newick</button>
+          </div>
+          <div id="treeView" style="border:1px solid #e5e9f2;border-radius:8px;background:#fff;padding:8px;overflow:auto"></div>
+          <details style="margin-top:10px;font-size:10px;color:#7b8d93">
+            <summary style="cursor:pointer;font-weight:650">Raw Newick</summary>
+            <pre id="treeNewick" style="white-space:pre-wrap;word-break:break-all;background:#f8fbfa;border:1px solid #e5e9f2;border-radius:8px;padding:10px;font-family:Consolas,monospace;font-size:10px;line-height:1.5;color:#3d5157;margin:8px 0 0"></pre>
+          </details>
+        </div>
+
+        <div id="matrixPane" style="display:none">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin:0 0 10px">
+            <div style="font-size:13px;font-weight:750;color:#14252c">Percent Identity Matrix</div>
+            <button id="downloadMatrix" type="button" style="border:1px solid #dce7e5;background:#fff;color:#51666d;border-radius:8px;padding:6px 9px;font-size:10px;font-weight:650;cursor:pointer;white-space:nowrap">Download CSV</button>
+          </div>
+          <div id="matrixView" style="overflow:auto;border:1px solid #e5e9f2;border-radius:8px;background:#fff"></div>
+        </div>
+      </div>
+
+      <div class="error-box" id="errorBox" hidden></div>
+    </section>
+  </div>
+</div>
+
+<footer>
+  <div>Clustal Omega 1.2.4</div>
+  <div><a href="https://doi.org/10.1038/msb.2011.75" target="_blank" rel="noopener">Sievers et al. 2011</a> · <a href="https://github.com/GSLBiotech/clustal-omega" target="_blank" rel="noopener">Source</a> · GPL-2.0-or-later</div>
+</footer>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+/*__MINI_WASI__*/
+</script>
+
+<script>
+(function(){
+  'use strict';
+
+  const WASM_BASE64 = '__WASM_BASE64__';
+
+  const AA_ORDER = 'ARNDCQEGHILKMFPSTWYVBZX*';
+  const BLOSUM62 = [
+    [ 4,-1,-2,-2, 0,-1,-1, 0,-2,-1,-1,-1,-1,-2,-1, 1, 0,-3,-2, 0,-2,-1, 0,-4],
+    [-1, 5, 0,-2,-3, 1, 0,-2, 0,-3,-2, 2,-1,-3,-2,-1,-1,-3,-2,-3,-1, 0,-1,-4],
+    [-2, 0, 6, 1,-3, 0, 0, 0, 1,-3,-3, 0,-2,-3,-2, 1, 0,-4,-2,-3, 3, 0,-1,-4],
+    [-2,-2, 1, 6,-3, 0, 2,-1,-1,-3,-4,-1,-3,-3,-1, 0,-1,-4,-3,-3, 4, 1,-1,-4],
+    [ 0,-3,-3,-3, 9,-3,-4,-3,-3,-1,-1,-3,-1,-2,-3,-1,-1,-2,-2,-1,-3,-3,-2,-4],
+    [-1, 1, 0, 0,-3, 5, 2,-2, 0,-3,-2, 1, 0,-3,-1, 0,-1,-2,-1,-2, 0, 3,-1,-4],
+    [-1, 0, 0, 2,-4, 2, 5,-2, 0,-3,-3, 1,-2,-3,-1, 0,-1,-3,-2,-2, 1, 4,-1,-4],
+    [ 0,-2, 0,-1,-3,-2,-2, 6,-2,-4,-4,-2,-3,-3,-2, 0,-2,-2,-3,-3,-1,-2,-1,-4],
+    [-2, 0, 1,-1,-3, 0, 0,-2, 8,-3,-3,-1,-2,-1,-2,-1,-2,-2, 2,-3, 0, 0,-1,-4],
+    [-1,-3,-3,-3,-1,-3,-3,-4,-3, 4, 2,-3, 1, 0,-3,-2,-1,-3,-1, 3,-3,-3,-1,-4],
+    [-1,-2,-3,-4,-1,-2,-3,-4,-3, 2, 4,-2, 2, 0,-3,-2,-1,-2,-1, 1,-4,-3,-1,-4],
+    [-1, 2, 0,-1,-3, 1, 1,-2,-1,-3,-2, 5,-1,-3,-1, 0,-1,-3,-2,-2, 0, 1,-1,-4],
+    [-1,-1,-2,-3,-1, 0,-2,-3,-2, 1, 2,-1, 5, 0,-2,-1,-1,-1,-1, 1,-3,-1,-1,-4],
+    [-2,-3,-3,-3,-2,-3,-3,-3,-1, 0, 0,-3, 0, 6,-4,-2,-2, 1, 3,-1,-3,-3,-1,-4],
+    [-1,-2,-2,-1,-3,-1,-1,-2,-2,-3,-3,-1,-2,-4, 7,-1,-1,-4,-3,-2,-2,-1,-2,-4],
+    [ 1,-1, 1, 0,-1, 0, 0, 0,-1,-2,-2, 0,-1,-2,-1, 4, 1,-3,-2,-2, 0, 0, 0,-4],
+    [ 0,-1, 0,-1,-1,-1,-1,-2,-2,-1,-1,-1,-1,-2,-1, 1, 5,-2,-2, 0,-1,-1, 0,-4],
+    [-3,-3,-4,-4,-2,-2,-3,-2,-2,-3,-2,-3,-1, 1,-4,-3,-2,11, 2,-3,-4,-3,-2,-4],
+    [-2,-2,-2,-3,-2,-1,-2,-3, 2,-1,-1,-2,-1, 3,-3,-2,-2, 2, 7,-1,-3,-2,-1,-4],
+    [ 0,-3,-3,-3,-1,-2,-2,-3,-3, 3, 1,-2, 1,-1,-2,-2, 0,-3,-1, 4,-3,-2,-1,-4],
+    [-2,-1, 3, 4,-3, 0, 1,-1, 0,-3,-4, 0,-3,-3,-2, 0,-1,-4,-3,-3, 4, 1,-1,-4],
+    [-1, 0, 0, 1,-3, 3, 4,-2, 0,-3,-3, 1,-1,-3,-1, 0,-1,-3,-2,-2, 1, 4,-1,-4],
+    [ 0,-1,-1,-1,-2,-1,-1,-1,-1,-1,-1,-1,-1,-1,-2, 0, 0,-2,-1,-1,-1,-1,-1,-4],
+    [-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4,-4, 1]
+  ];
+  const AA_INDEX = (() => {
+    const o = Object.create(null);
+    for (let i = 0; i < AA_ORDER.length; i++) o[AA_ORDER[i]] = i;
+    return o;
+  })();
+  function aaScore(a, b) {
+    const ia = AA_INDEX[a], ib = AA_INDEX[b];
+    return (ia === undefined || ib === undefined) ? 0 : BLOSUM62[ia][ib];
+  }
+  const AA_GROUP = {
+    A:'hydro', V:'hydro', I:'hydro', L:'hydro', M:'hydro',
+    F:'aromatic', W:'aromatic', Y:'aromatic',
+    K:'pos', R:'pos', H:'pos',
+    D:'neg', E:'neg',
+    S:'polar', T:'polar', N:'polar', Q:'polar',
+    C:'cys', G:'special', P:'special'
+  };
+
+  const EXAMPLE = `>HBA_HUMAN Hemoglobin subunit alpha
+MVLSPADKTNVKAAWGKVGAHAGEYGAEALERMFLSFPTTKTYFPHFDLSHGSAQVKGHGKKVADALTNAVAHVDDMPNALSALSDLHAHKLRVDPVNFKLLSHCLLVTLAAHLPAEFTPAVHASLDKFLASVSTVLTSKYR
+>HBB_HUMAN Hemoglobin subunit beta
+MVHLTPEEKSAVTALWGKVNVDEVGGEALGRLLVVYPWTQRFFESFGDLSTPDAVMGNPKVKAHGKKVLGAFSDGLAHLDNLKGTFATLSELHCDKLHVDPENFRLLGNVLVCVLAHHFGKEFTPPVQAAYQKVVAGVANALAHKYH
+>MYG_HUMAN Myoglobin
+MGLSDGEWQLVLNVWGKVEADIPGHGQEVLIRLFKGHPETLEKFKHLKSEDEMKASEDLKKHGATVLTALGGILKKKGHHEAEIKPLAQSHATKHKIPVKYLEFISECIIQVLQSKHPGDFGADAQGAMNKALELFRKDMASNYKELGFQG
+>CYGB_HUMAN Cytoglobin
+MEKVPGEMEIERRERSEELSEAERKAVQAMWARLYANCEDVGVAILVRFFVNFPSAKQYFSQFKHMEDPLEMERSPQLRKHACRVMGALNTVVENLHDPDKVSSVLALVGKAHALKHKVEPVYFKILSGVILEVVAEEFASDFPPETQRAWAKLRGLIYSHVTAAYKEVGWVQQVPNATTPPATLPSSGP`;
+
+  const state = { sequences: [], parsed: null, result: null, running: false, renderAll: false, width: 60 };
+  const $ = (id) => document.getElementById(id);
+  const els = {
+    input: $('seqInput'), parseInfo: $('parseInfo'), chips: $('seqChips'),
+    run: $('runBtn'), runLabel: $('runLabel'), clear: $('clearBtn'),
+    example: $('loadExample'), file: $('openFile'), fileInput: $('fileInput'),
+    seqType: $('seqType'), iterations: $('iterations'), outputOrder: $('outputOrder'),
+    empty: $('emptyState'), running: $('runningState'), content: $('resultContent'),
+    error: $('errorBox'), meta: $('resultMeta'), stats: $('stats'), legend: $('legend'),
+    view: $('alignmentView'), scroll: $('msaScroll'), renderNote: $('renderNote'), timer: $('runTimer'),
+    copy: $('copyBtn'), dlFasta: $('downloadFasta'), dlClustal: $('downloadClustal'),
+    title: $('resultTitle'), tabs: $('tabs'), actions: $('alignmentActions'), alignmentPane: $('alignmentPane'),
+    treePane: $('treePane'), matrixPane: $('matrixPane'), treeView: $('treeView'),
+    matrixView: $('matrixView'), treeNewick: $('treeNewick'), dlTree: $('downloadTree'),
+    dlMatrix: $('downloadMatrix'), toast: $('toast')
+  };
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function shortName(name, max) {
+    max = max || 22;
+    const s = String(name || '');
+    return s.length > max ? s.slice(0, max - 1) + '…' : s;
+  }
+  function fmt(n) { return Number(n).toLocaleString('zh-CN'); }
+
+  function parseFasta(text) {
+    const src = String(text || '').replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
+    const lines = src.split('\n');
+    const records = [];
+    let cur = null;
+    let sawHeader = false;
+    for (const raw of lines) {
+      const line = raw.trim();
+      if (!line) continue;
+      if (line.startsWith('>')) {
+        sawHeader = true;
+        if (cur) records.push(cur);
+        const header = line.slice(1).trim() || `sequence_${records.length + 1}`;
+        cur = { header, id: header.split(/\s+/)[0] || `sequence_${records.length + 1}`, chunks: [] };
+      } else if (cur) {
+        cur.chunks.push(line.replace(/\s+/g, ''));
+      }
+    }
+    if (cur) records.push(cur);
+    if (!sawHeader) return { error: 'No FASTA header found. Each sequence must start with ">".' };
+
+    const sequences = [];
+    for (const r of records) {
+      const seq = r.chunks.join('');
+      if (!seq) continue;
+      if (!/^[A-Za-z*.-]+$/.test(seq)) return { error: `Sequence "${r.id}" contains invalid characters.` };
+      sequences.push({ id: r.id, header: r.header, seq: seq.toUpperCase() });
+    }
+    if (!sequences.length) return { error: 'No valid sequences found.' };
+
+    // The alignment figure keeps only the token before the first space,
+    // matching the R draw_alignment() labels.
+    for (const s of sequences) s.displayName = s.id;
+    return { sequences };
+  }
+
+  function updatePreview() {
+    const parsed = parseFasta(els.input.value);
+    state.parsed = parsed;
+    state.sequences = parsed.sequences || [];
+    state.result = null;
+    state.renderAll = false;
+    els.chips.innerHTML = '';
+    els.error.hidden = true;
+
+    if (parsed.error) {
+      els.parseInfo.className = 'parse-info error';
+      els.parseInfo.textContent = parsed.error;
+      els.run.disabled = true;
+      return;
+    }
+
+    const seqs = parsed.sequences;
+    const total = seqs.reduce((n, s) => n + s.seq.length, 0);
+    const longest = Math.max(...seqs.map(s => s.seq.length));
+    const tooMany = seqs.length > 50;
+    const tooLong = longest > 10000 || total > 2000000;
+
+    els.parseInfo.className = 'parse-info' + (tooMany || tooLong ? ' warn' : '');
+    els.parseInfo.innerHTML = `<span class="live-dot" style="background:${tooMany || tooLong ? '#d19a3c' : '#22a06b'}"></span>
+      <span><strong>${seqs.length}</strong> sequences · <strong>${fmt(total)}</strong> aa${tooMany ? ' · ≤50 recommended' : ''}</span>`;
+
+    const maxChips = 7;
+    for (let i = 0; i < Math.min(seqs.length, maxChips); i++) {
+      const s = seqs[i];
+      const chip = document.createElement('span');
+      chip.className = 'chip';
+      chip.title = s.header;
+      chip.innerHTML = `<i></i>${escapeHtml(shortName(s.displayName, 18))} · ${s.seq.length}`;
+      els.chips.appendChild(chip);
+    }
+    if (seqs.length > maxChips) {
+      const more = document.createElement('span');
+      more.className = 'chip';
+      more.textContent = `+${seqs.length - maxChips}`;
+      els.chips.appendChild(more);
+    }
+
+    const minOk = seqs.length >= 2;
+    els.run.disabled = !minOk || total === 0;
+    if (!minOk) {
+      els.parseInfo.className = 'parse-info warn';
+      els.parseInfo.innerHTML = '<span>At least 2 sequences are required.</span>';
+    }
+  }
+
+  function buildRunFasta() {
+    return state.sequences.map((s, i) => `>seq${i + 1}\n${s.seq.replace(/-/g, '')}`).join('\n') + '\n';
+  }
+
+  let modulePromise = null;
+  function getModule() {
+    if (!modulePromise) {
+      modulePromise = (async () => {
+        const bin = atob(WASM_BASE64);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        return WebAssembly.compile(bytes);
+      })();
+    }
+    return modulePromise;
+  }
+
+  async function runClustal(fasta, opts) {
+    const module = await getModule();
+    const t0 = performance.now();
+    let stderr = '';
+    const wasi = new MiniWASI({
+      args: [
+        'clustalo', '-i', '/work/in.fa', '--outfmt=fa', '-o', '/work/out.fa',
+        ...(opts.sequenceCount >= 3 ? [
+          '--guidetree-out=/work/tree.nwk',
+          '--distmat-out=/work/dist.mat',
+          '--full', '--percent-id'
+        ] : []),
+        '--force', '--threads=1', '--wrap=60',
+        `--output-order=${opts.order === 'tree' ? 'tree-order' : 'input-order'}`,
+        ...(opts.seqType !== 'auto' ? [`--seqtype=${opts.seqType}`] : []),
+        ...(opts.iterations > 0 ? [`--iter=${opts.iterations}`] : [])
+      ],
+      preopens: { '/work': { 'in.fa': fasta } },
+      onStdout: () => {},
+      onStderr: (s) => { stderr += s; }
+    });
+    const instance = await WebAssembly.instantiate(module, wasi.getImportObject());
+    const code = wasi.start(instance);
+    const elapsed = performance.now() - t0;
+    const node = wasi.fs.get('/work/out.fa');
+    if (code !== 0 || !node || !node.data || node.data.length === 0) {
+      const detail = stderr.trim().slice(-1200) || 'Clustal Omega produced no output.';
+      throw new Error(`Alignment failed (exit code ${code}).\n${detail}`);
+    }
+    const decoder = new TextDecoder();
+    const treeNode = wasi.fs.get('/work/tree.nwk');
+    const matrixNode = wasi.fs.get('/work/dist.mat');
+    return {
+      fasta: decoder.decode(node.data),
+      tree: treeNode && treeNode.data ? decoder.decode(treeNode.data) : '',
+      matrix: matrixNode && matrixNode.data ? decoder.decode(matrixNode.data) : '',
+      stderr, elapsed
+    };
+  }
+
+  function parseAlignedFasta(text) {
+    const lines = String(text || '').replace(/\r\n?/g, '\n').split('\n');
+    const recs = [];
+    let cur = null;
+    for (const raw of lines) {
+      const line = raw.trim();
+      if (!line) continue;
+      if (line.startsWith('>')) {
+        if (cur) recs.push(cur);
+        cur = { header: line.slice(1).trim(), seq: '' };
+      } else if (cur) {
+        cur.seq += line.replace(/\s+/g, '');
+      }
+    }
+    if (cur) recs.push(cur);
+    if (recs.length < 2) throw new Error('Not enough sequences in output.');
+    const L = recs[0].seq.length;
+    if (!L) throw new Error('Empty alignment output.');
+    for (const r of recs) {
+      if (r.seq.length !== L) throw new Error(`Output sequence length mismatch (${r.header}: ${r.seq.length} vs ${L}).`);
+    }
+    return recs;
+  }
+
+  function parsePercentIdentityMatrix(text, records) {
+    const lines = String(text || '').replace(/\r\n?/g, '\n').split('\n');
+    const rows = [];
+    let declared = null;
+    for (const raw of lines) {
+      const line = raw.trim();
+      if (!line || line.startsWith('#')) continue;
+      if (declared === null && /^\d+$/.test(line)) {
+        declared = Number(line);
+        continue;
+      }
+      const parts = line.split(/\s+/);
+      if (parts.length < 2) continue;
+      const name = parts.shift();
+      const values = [];
+      for (const p of parts) {
+        const v = Number(p);
+        if (Number.isFinite(v)) values.push(v);
+      }
+      if (values.length >= 2) rows.push({ name, values });
+    }
+    if (!rows.length) return null;
+    const n = Math.min(rows.length, declared || rows.length);
+    const labels = [];
+    const values = [];
+    for (let i = 0; i < n; i++) {
+      const row = rows[i];
+      const m = /^seq(\d+)$/.exec(row.name);
+      const idx = m ? Number(m[1]) - 1 : i;
+      const rec = state.sequences[idx] || records[idx];
+      labels.push(rec ? rec.displayName : row.name);
+      values.push(row.values.slice(0, n));
+    }
+    return { labels, values };
+  }
+
+  function parseNewick(text) {
+    const s = String(text || '').replace(/\s+/g, '');
+    let i = 0;
+    function readName() {
+      const start = i;
+      while (i < s.length && !':,();'.includes(s[i])) i++;
+      return s.slice(start, i);
+    }
+    function node() {
+      const n = { name: '', length: 0, children: [] };
+      if (s[i] === '(') {
+        i++;
+        while (i < s.length) {
+          n.children.push(node());
+          if (s[i] === ',') { i++; continue; }
+          if (s[i] === ')') { i++; break; }
+          throw new Error('Invalid Newick');
+        }
+        n.name = readName();
+      } else {
+        n.name = readName();
+      }
+      if (s[i] === ':') {
+        i++;
+        const start = i;
+        while (i < s.length && !',();'.includes(s[i])) i++;
+        n.length = Number(s.slice(start, i)) || 0;
+      }
+      return n;
+    }
+    const root = node();
+    return root && (root.children.length || root.name) ? root : null;
+  }
+
+  function mapTreeNames(node, records) {
+    if (!node.children.length) {
+      const m = /^seq(\d+)$/.exec(node.name);
+      if (m) {
+        const idx = Number(m[1]) - 1;
+        const rec = state.sequences[idx] || records[idx];
+        if (rec) node.name = rec.displayName;
+      }
+    }
+    for (const c of node.children) mapTreeNames(c, records);
+  }
+
+  function renderTree(treeText, records) {
+    if ((!treeText || !treeText.trim()) && records.length === 2) {
+      treeText = fallbackTree(records);
+    }
+    if (!treeText || !treeText.trim()) {
+      els.treeView.innerHTML = '<div style="padding:24px;text-align:center;color:#8a9aa0;font-size:11px">Clustal Omega returned no guide tree.</div>';
+      els.treeNewick.textContent = '';
+      return;
+    }
+    if (state.result) state.result.tree = treeText;
+    let root;
+    try { root = parseNewick(treeText); } catch (e) { root = null; }
+    if (!root) {
+      els.treeView.innerHTML = '<div style="padding:24px;text-align:center;color:#b3403d;font-size:11px">Could not parse the Newick guide tree.</div>';
+      els.treeNewick.textContent = treeText.trim();
+      return;
+    }
+    mapTreeNames(root, records);
+    const leaves = [];
+    let maxX = 0;
+    function layout(node, x) {
+      node.x = x + (node.length || 0);
+      maxX = Math.max(maxX, node.x);
+      if (!node.children.length) {
+        node.y = leaves.length;
+        leaves.push(node);
+      } else {
+        for (const c of node.children) layout(c, node.x);
+        node.y = (node.children[0].y + node.children[node.children.length - 1].y) / 2;
+      }
+    }
+    layout(root, 0);
+    if (maxX <= 0) {
+      // No usable branch lengths: fall back to tree depth.
+      maxX = 0;
+      (function depth(node, d) {
+        node.x = d;
+        maxX = Math.max(maxX, d);
+        for (const c of node.children) depth(c, d + 1);
+      })(root, 0);
+    }
+    const rowH = 26;
+    const top = 22;
+    const left = 20;
+    const treeW = 610;
+    const labelW = 250;
+    const width = left + treeW + labelW;
+    const height = Math.max(180, top + leaves.length * rowH + 18);
+    const scale = maxX ? (treeW - 24) / maxX : 0;
+    const xOf = (n) => left + n.x * scale;
+    const yOf = (n) => top + n.y * rowH;
+    const parts = [];
+    parts.push(`<svg viewBox="0 0 ${width} ${height}" width="100%" style="display:block;min-width:720px" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Guide tree">`);
+    parts.push(`<rect x="0" y="0" width="${width}" height="${height}" fill="#ffffff"/>`);
+    (function draw(node) {
+      if (node.children.length) {
+        const x = xOf(node);
+        const ys = node.children.map(yOf);
+        const y0 = Math.min(...ys);
+        const y1 = Math.max(...ys);
+        parts.push(`<line x1="${x}" y1="${y0}" x2="${x}" y2="${y1}" stroke="#8ea0a6" stroke-width="1.3"/>`);
+        for (const c of node.children) {
+          parts.push(`<line x1="${x}" y1="${yOf(c)}" x2="${xOf(c)}" y2="${yOf(c)}" stroke="#5f737a" stroke-width="1.4" stroke-linecap="round"/>`);
+          draw(c);
+        }
+      }
+    })(root);
+    for (const leaf of leaves) {
+      const x = xOf(leaf);
+      const y = yOf(leaf);
+      const label = leaf.name.length > 26 ? leaf.name.slice(0, 25) + '…' : leaf.name;
+      parts.push(`<circle cx="${x}" cy="${y}" r="2.4" fill="#0c7a72"/>`);
+      parts.push(`<text x="${x + 9}" y="${y + 3.8}" font-family="Consolas,ui-monospace,monospace" font-size="10.5" fill="#263b42">${escapeHtml(label)}</text>`);
+    }
+    parts.push('</svg>');
+    els.treeView.innerHTML = parts.join('');
+    els.treeNewick.textContent = treeText.trim();
+  }
+
+  function matrixColor(value) {
+    const v = Math.max(0, Math.min(1, value));
+    const a = [0xF4, 0xF6, 0xFB];
+    const b = [0x0C, 0x7A, 0x72];
+    const mix = a.map((x, i) => Math.round(x + (b[i] - x) * v));
+    return `rgb(${mix[0]},${mix[1]},${mix[2]})`;
+  }
+
+  function renderMatrix(matrixText, records) {
+    let matrix = parsePercentIdentityMatrix(matrixText, records);
+    // Clustal Omega deliberately skips the distance matrix for exactly two
+    // sequences; compute the same matrix from the alignment in that case.
+    if (!matrix) matrix = computeIdentityMatrix(records);
+    if (!matrix) {
+      els.matrixView.innerHTML = '<div style="padding:24px;text-align:center;color:#8a9aa0;font-size:11px">Clustal Omega returned no identity matrix.</div>';
+      return;
+    }
+    const { labels, values } = matrix;
+    const labelW = 118;
+    let html = `<table style="border-collapse:collapse;font-family:Consolas,ui-monospace,monospace;font-size:10.5px;color:#33363B;min-width:${labelW + labels.length * 58}px">`;
+    html += '<thead><tr>';
+    html += `<th style="position:sticky;left:0;z-index:2;background:#f8fbfa;border:1px solid #e5e9f2;padding:7px 8px;text-align:left;min-width:${labelW}px"></th>`;
+    for (const label of labels) {
+      html += `<th title="${escapeHtml(label)}" style="background:#f8fbfa;border:1px solid #e5e9f2;padding:7px 6px;font-weight:650;white-space:nowrap;max-width:110px;overflow:hidden;text-overflow:ellipsis">${escapeHtml(label)}</th>`;
+    }
+    html += '</tr></thead><tbody>';
+    for (let i = 0; i < labels.length; i++) {
+      html += '<tr>';
+      html += `<th title="${escapeHtml(labels[i])}" style="position:sticky;left:0;z-index:1;background:#f8fbfa;border:1px solid #e5e9f2;padding:7px 8px;text-align:left;font-weight:650;white-space:nowrap;max-width:${labelW}px;overflow:hidden;text-overflow:ellipsis">${escapeHtml(labels[i])}</th>`;
+      for (let j = 0; j < labels.length; j++) {
+        const v = Number(values[i][j]);
+        const safe = Number.isFinite(v) ? Math.max(0, Math.min(100, v)) : 0;
+        const bg = matrixColor(safe / 100);
+        const color = safe >= 65 ? '#ffffff' : '#33363B';
+        html += `<td title="${escapeHtml(labels[i])} vs ${escapeHtml(labels[j])}: ${safe.toFixed(1)}%" style="background:${bg};color:${color};border:1px solid #ffffff;padding:6px 5px;text-align:center;font-variant-numeric:tabular-nums;white-space:nowrap">${safe.toFixed(1)}</td>`;
+      }
+      html += '</tr>';
+    }
+    html += '</tbody></table>';
+    els.matrixView.innerHTML = html;
+  }
+
+  function setTab(name) {
+    state.tab = name;
+    const active = { background: '#0c7a72', color: '#fff', border: '1px solid #0c7a72' };
+    const idle = { background: '#fff', color: '#51666d', border: '1px solid #dce7e5' };
+    for (const btn of document.querySelectorAll('#tabs [data-tab]')) {
+      const on = btn.dataset.tab === name;
+      const s = on ? active : idle;
+      btn.style.background = s.background;
+      btn.style.color = s.color;
+      btn.style.border = s.border;
+      btn.setAttribute('aria-selected', on ? 'true' : 'false');
+    }
+    els.actions.style.display = name === 'alignment' ? 'flex' : 'none';
+    els.alignmentPane.style.display = name === 'alignment' ? 'block' : 'none';
+    els.treePane.style.display = name === 'tree' ? 'block' : 'none';
+    els.matrixPane.style.display = name === 'matrix' ? 'block' : 'none';
+    els.title.textContent = name === 'tree' ? 'Phylogenetic tree' : name === 'matrix' ? 'Identity matrix' : 'Alignment';
+  }
+
+  function matrixCsv(matrixText, records) {
+    let matrix = parsePercentIdentityMatrix(matrixText, records);
+    if (!matrix) matrix = computeIdentityMatrix(records);
+    if (!matrix) return '';
+    const esc = s => `"${String(s).replace(/"/g, '""')}"`;
+    const lines = [['', ...matrix.labels].map(esc).join(',')];
+    for (let i = 0; i < matrix.labels.length; i++) {
+      lines.push([matrix.labels[i], ...matrix.values[i].map(v => Number(v).toFixed(2))].map(esc).join(','));
+    }
+    return lines.join('\n') + '\n';
+  }
+
+  function pairIdentity(a, b) {
+    let same = 0, compared = 0;
+    for (let i = 0; i < a.length; i++) {
+      if (a[i] === '-' || b[i] === '-') continue;
+      compared++;
+      if (a[i] === b[i]) same++;
+    }
+    return compared ? same / compared : 0;
+  }
+
+  function computeIdentityMatrix(records) {
+    const n = records.length;
+    const labels = records.map(r => r.displayName);
+    const values = Array.from({ length: n }, () => new Array(n).fill(0));
+    for (let i = 0; i < n; i++) {
+      values[i][i] = 100;
+      for (let j = i + 1; j < n; j++) {
+        const v = pairIdentity(records[i].seq, records[j].seq) * 100;
+        values[i][j] = v;
+        values[j][i] = v;
+      }
+    }
+    return { labels, values };
+  }
+
+  function fallbackTree(records) {
+    if (records.length === 2) {
+      const id = pairIdentity(records[0].seq, records[1].seq);
+      const branch = Math.max(0.0001, (1 - id) / 2);
+      const safe = s => String(s).replace(/[\s:;,()]/g, '_');
+      return `(${safe(records[0].displayName)}:${branch.toFixed(5)},${safe(records[1].displayName)}:${branch.toFixed(5)});`;
+    }
+    return '';
+  }
+
+  function computeStats(records) {
+    const n = records.length;
+    const L = records[0].seq.length;
+    const seqs = records.map(r => r.seq);
+    const colCounts = new Array(L);
+    const colResidues = new Uint16Array(L);
+    const gapColumns = new Uint8Array(L);
+    let conserved = 0, gapCols = 0, gapChars = 0, consSum = 0, consCells = 0;
+
+    for (let j = 0; j < L; j++) {
+      const chars = [];
+      let gaps = 0;
+      for (let i = 0; i < n; i++) {
+        const c = seqs[i][j];
+        if (c === '-') { gaps++; gapChars++; }
+        else chars.push(c);
+      }
+      colResidues[j] = chars.length;
+
+      if (!chars.length) {
+        gapCols++;
+        gapColumns[j] = 1;
+        colCounts[j] = null;
+        continue;
+      }
+
+      const counts = new Map();
+      for (const c of chars) counts.set(c, (counts.get(c) || 0) + 1);
+      colCounts[j] = counts;
+      if (gaps > 0) {
+        gapCols++;
+        gapColumns[j] = 1;
+      }
+      if (gaps === 0 && counts.size === 1) conserved++;
+
+      // Conservation is computed per residue among the residues actually
+      // present in the column. A gap cell is painted separately, so the
+      // remaining residues still keep their conservation shading.
+      for (const c of chars) {
+        const count = counts.get(c);
+        consSum += count === 1 ? 0 : count / chars.length;
+        consCells++;
+      }
+    }
+
+    return {
+      n, L, conserved, gapCols, gapChars,
+      gapFraction: gapChars / (n * L),
+      avgConservation: consCells ? consSum / consCells : 0,
+      colCounts, colResidues, gapColumns
+    };
+  }
+
+  // Linear RGB interpolation between the two draw_alignment() conservation colors.
+  function conservationColor(value) {
+    const v = Math.max(0, Math.min(1, value));
+    const a = [0xF4, 0xF6, 0xFB];
+    const b = [0x6A, 0x78, 0xD1];
+    const mix = a.map((x, i) => Math.round(x + (b[i] - x) * v));
+    return `rgb(${mix[0]},${mix[1]},${mix[2]})`;
+  }
+
+  function renderResult(result) {
+    const { records, stats, elapsed, tree, matrix } = result;
+    state.result = result;
+
+    els.empty.hidden = true;
+    els.running.hidden = true;
+    els.error.hidden = true;
+    els.content.hidden = false;
+
+    const typeLabel = els.seqType.options[els.seqType.selectedIndex].text;
+    els.meta.textContent =
+      `${records.length} sequences · ${stats.L} columns · ${elapsed >= 1000 ? (elapsed / 1000).toFixed(2) + ' s' : Math.round(elapsed) + ' ms'} · ${typeLabel}` +
+      (Number(els.iterations.value) ? ` · ${els.iterations.value} iterations` : '');
+
+    const card = (label, value, accent) => `
+      <div style="flex:1 1 105px;min-width:100px;box-sizing:border-box;border:1px solid ${accent ? '#075b58' : '#dce7e5'};border-radius:10px;padding:9px 11px;background:${accent ? 'linear-gradient(145deg,#0e7d74,#075b58)' : '#fff'}">
+        <div style="font-size:8.5px;line-height:1.2;letter-spacing:.08em;text-transform:uppercase;color:${accent ? 'rgba(255,255,255,.65)' : '#93a4a8'};font-weight:750;white-space:nowrap">${label}</div>
+        <div style="margin-top:5px;font-size:20px;line-height:1;letter-spacing:-.04em;color:${accent ? '#fff' : '#14252c'};font-variant-numeric:tabular-nums">${value}</div>
+      </div>`;
+
+    els.stats.innerHTML =
+      card('Sequences', stats.n, true) +
+      card('Length', fmt(stats.L), false) +
+      card('Conserved', fmt(stats.conserved), false) +
+      card('Gaps', `${(100 * stats.gapFraction).toFixed(1)}%`, false) +
+      card('Conservation', `${(100 * stats.avgConservation).toFixed(1)}%`, false);
+
+    els.legend.innerHTML = `
+      <span style="font-size:9px;font-weight:750;letter-spacing:.04em;color:#5f6b82">Conservation</span>
+      <span style="display:inline-flex;align-items:center;gap:5px">
+        <span style="font-family:Consolas,monospace;font-size:8px;color:#8a96ad">0</span>
+        <span style="display:inline-block;width:110px;height:9px;border:1px solid #dce2f0;border-radius:2px;background:linear-gradient(90deg,#F4F6FB 0%,#6A78D1 100%)"></span>
+        <span style="font-family:Consolas,monospace;font-size:8px;color:#8a96ad">1</span>
+      </span>
+      <span style="display:inline-flex;align-items:center;gap:5px"><i style="display:inline-block;width:9px;height:9px;border:1px solid #ddd6cc;background:#EDE9E3"></i>gap</span>`;
+
+    renderAlignment();
+    renderTree(tree, records);
+    renderMatrix(matrix, records);
+    setTab('alignment');
+  }
+
+  function renderAlignment() {
+    if (!state.result) return;
+    const { records, stats } = state.result;
+    const L = stats.L;
+    const mobile = window.matchMedia('(max-width: 680px)').matches;
+    const labelW = mobile ? 104 : 150;
+    const posW = mobile ? 36 : 52;
+    const cellW = mobile ? 8.8 : 10.8;
+    const containerW = els.scroll.clientWidth || (mobile ? 340 : 1200);
+    const available = Math.max(160, containerW - labelW - posW - 34);
+    const width = Math.max(18, Math.min(220, Math.floor(available / cellW)));
+    state.width = width;
+
+    // Exact pixel width per residue: every letter occupies the same box.
+    els.view.style.setProperty('--label-w', labelW + 'px');
+    els.view.style.setProperty('--cell-w', cellW + 'px');
+
+    const totalCells = records.length * L;
+    const limit = 160000;
+    let renderL = L;
+
+    if (!state.renderAll && totalCells > limit) {
+      renderL = Math.max(width * 4, Math.floor(limit / records.length / width) * width);
+      if (renderL >= L) renderL = L;
+    }
+
+    const nameStyle = `flex:0 0 ${labelW}px;width:${labelW}px;min-width:${labelW}px;max-width:${labelW}px;text-align:right;padding:0 8px 0 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:Consolas,ui-monospace,monospace;font-weight:700;font-size:${mobile ? 10 : 12}px;line-height:1.3;color:#33363B;align-self:center`;
+    const seqStyle = `flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:0;white-space:nowrap;font-family:Consolas,ui-monospace,monospace;font-size:${mobile ? 14 : 17}px;line-height:1`;
+    const cellBase = `flex:0 0 ${cellW}px;width:${cellW}px;min-width:${cellW}px;max-width:${cellW}px;height:1.3em;display:inline-flex;align-items:center;justify-content:center;padding:0;margin:0;color:#33363B`;
+    const posStyle = `flex:0 0 ${posW}px;width:${posW}px;box-sizing:border-box;padding-left:4px;text-align:right;font-family:Consolas,ui-monospace,monospace;font-size:${mobile ? 9.5 : 11}px;line-height:1;color:#8a9aa0;font-variant-numeric:tabular-nums;align-self:center`;
+    const rowPos = new Array(records.length).fill(0);
+
+    let html = '';
+    for (let start = 0; start < renderL; start += width) {
+      const end = Math.min(start + width, renderL);
+      html += `<div class="msa-block" style="padding:7px 12px 9px">`;
+      for (let i = 0; i < records.length; i++) {
+        const rec = records[i];
+        let seqHtml = '';
+        let endPos = rowPos[i];
+        for (let j = start; j < end; j++) {
+          const ch = rec.seq[j];
+          if (ch !== '-') endPos++;
+          const isGap = ch === '-';
+          let background = '#EDE9E3';
+          if (!isGap) {
+            const counts = stats.colCounts[j];
+            const count = counts ? (counts.get(ch) || 0) : 1;
+            const residues = stats.colResidues[j] || 1;
+            // Singleton residue = 0; fully conserved = 1. Gap cells stay gray,
+            // but the other residues in the same column remain colored.
+            background = conservationColor(count === 1 ? 0 : count / residues);
+          }
+          seqHtml += `<span class="c${isGap ? ' is-gap' : ''}" style="${cellBase};background:${background}">${ch}</span>`;
+        }
+        rowPos[i] = endPos;
+        html += `<div class="msa-row" style="display:flex;align-items:center;min-height:1.56em;margin:0;gap:0"><div class="msa-name" style="${nameStyle}" title="${escapeHtml(rec.displayName)}">${escapeHtml(rec.displayName)}</div><div class="msa-seq" style="${seqStyle}">${seqHtml}</div><div class="msa-pos" style="${posStyle}">${endPos}</div></div>`;
+      }
+      html += '</div>';
+    }
+
+    if (renderL < L) {
+      html += `<div class="msa-block" style="text-align:center;color:#899da1;font-size:10px;padding:18px">Showing first ${fmt(renderL)} / ${fmt(L)} columns</div>`;
+    }
+    els.view.innerHTML = html;
+
+    const truncated = renderL < L;
+    els.renderNote.hidden = !truncated;
+    if (truncated) {
+      els.renderNote.innerHTML = `<span>Showing first ${fmt(renderL)} columns</span><button class="ghost small" id="showAllBtn" type="button">Show all ${fmt(L)} columns</button>`;
+      const btn = $('showAllBtn');
+      if (btn) btn.onclick = () => { state.renderAll = true; renderAlignment(); };
+    }
+  }
+
+  function currentAlignedFasta() {
+    if (!state.result) return '';
+    return state.result.records.map(r => `>${r.displayName}\n${r.seq}`).join('\n') + '\n';
+  }
+
+  function toClustal(records) {
+    const nameW = Math.max(16, Math.min(40, Math.max(...records.map(r => r.displayName.length)) + 2));
+    let out = 'CLUSTAL O(1.2.4) multiple sequence alignment\n\n';
+    const L = records[0].seq.length;
+    for (let start = 0; start < L; start += 60) {
+      for (const r of records) {
+        const label = r.displayName.length > nameW ? r.displayName.slice(0, nameW - 1) + '…' : r.displayName;
+        out += label.padEnd(nameW, ' ') + ' ' + r.seq.slice(start, start + 60) + '\n';
+      }
+      out += '\n';
+    }
+    return out;
+  }
+
+  let timerId = null;
+  function setRunning(on) {
+    state.running = on;
+    els.run.disabled = on;
+    els.runLabel.textContent = on ? 'Aligning…' : 'Align';
+    els.run.querySelector('.arrow').style.display = on ? 'none' : '';
+    if (on) {
+      els.run.insertAdjacentHTML('afterbegin', '<span class="spinner" id="runSpinner"></span>');
+    } else {
+      const sp = $('runSpinner');
+      if (sp) sp.remove();
+    }
+  }
+
+  async function align() {
+    if (state.running) return;
+    updatePreview();
+    if (!state.parsed || state.parsed.error || state.sequences.length < 2) {
+      els.error.hidden = false;
+      els.error.textContent = state.parsed && state.parsed.error ? state.parsed.error : 'Enter at least 2 FASTA sequences.';
+      els.empty.hidden = true;
+      els.content.hidden = true;
+      els.running.hidden = true;
+      return;
+    }
+
+    els.empty.hidden = true;
+    els.content.hidden = true;
+    els.error.hidden = true;
+    els.running.hidden = false;
+    els.timer.textContent = '0.0 s';
+    setRunning(true);
+    const start = performance.now();
+    timerId = setInterval(() => {
+      els.timer.textContent = ((performance.now() - start) / 1000).toFixed(1) + ' s';
+    }, 100);
+
+    await new Promise(r => setTimeout(r, 40));
+    try {
+      const fasta = buildRunFasta();
+      const opts = { seqType: els.seqType.value, iterations: Number(els.iterations.value), sequenceCount: state.sequences.length, order: els.outputOrder.value };
+      const run = await runClustal(fasta, opts);
+      const records = parseAlignedFasta(run.fasta);
+      if (records.length !== state.sequences.length) {
+        throw new Error(`Output sequence count (${records.length}) does not match input (${state.sequences.length}).`);
+      }
+      records.forEach((r, i) => {
+        const m = /^seq(\d+)$/.exec(r.header);
+        const src = m ? state.sequences[Number(m[1]) - 1] : state.sequences[i];
+        if (src) {
+          r.displayName = src.displayName;
+          r.header = src.header;
+        }
+      });
+      const stats = computeStats(records);
+      renderResult({ records, stats, elapsed: run.elapsed, tree: run.tree, matrix: run.matrix, stderr: run.stderr });
+      els.running.hidden = true;
+    } catch (err) {
+      els.running.hidden = true;
+      els.content.hidden = true;
+      els.empty.hidden = true;
+      els.error.hidden = false;
+      els.error.textContent = String(err && err.message ? err.message : err);
+    } finally {
+      clearInterval(timerId);
+      timerId = null;
+      setRunning(false);
+    }
+  }
+
+  function showToast(msg) {
+    els.toast.textContent = msg;
+    els.toast.classList.add('show');
+    setTimeout(() => els.toast.classList.remove('show'), 1800);
+  }
+
+  function download(filename, text, type) {
+    const blob = new Blob([text], { type: type || 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function stamp() {
+    const d = new Date();
+    const p = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`;
+  }
+
+  let debounce = null;
+  els.input.addEventListener('input', () => {
+    clearTimeout(debounce);
+    debounce = setTimeout(updatePreview, 160);
+  });
+
+  els.example.addEventListener('click', () => {
+    els.input.value = EXAMPLE;
+    updatePreview();
+    align();
+  });
+
+  els.clear.addEventListener('click', () => {
+    els.input.value = '';
+    updatePreview();
+    els.content.hidden = true;
+    els.error.hidden = true;
+    els.running.hidden = true;
+    els.empty.hidden = false;
+    state.result = null;
+  });
+
+  els.file.addEventListener('click', () => els.fileInput.click());
+  els.fileInput.addEventListener('change', async () => {
+    const f = els.fileInput.files && els.fileInput.files[0];
+    if (!f) return;
+    try {
+      els.input.value = await f.text();
+      updatePreview();
+      showToast(`Loaded ${f.name}`);
+    } catch (e) {
+      showToast('File read failed');
+    }
+    els.fileInput.value = '';
+  });
+
+  els.run.addEventListener('click', align);
+
+  els.copy.addEventListener('click', async () => {
+    const text = currentAlignedFasta();
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (e) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+    }
+    showToast('Aligned FASTA copied');
+  });
+
+  els.dlFasta.addEventListener('click', () => {
+    if (!state.result) return;
+    download(`alignment-${stamp()}.fasta`, currentAlignedFasta(), 'text/x-fasta;charset=utf-8');
+  });
+
+  els.dlClustal.addEventListener('click', () => {
+    if (!state.result) return;
+    download(`alignment-${stamp()}.aln`, toClustal(state.result.records), 'text/plain;charset=utf-8');
+  });
+
+  document.querySelectorAll('#tabs [data-tab]').forEach(btn => {
+    btn.addEventListener('click', () => setTab(btn.dataset.tab));
+  });
+
+  els.dlTree.addEventListener('click', () => {
+    if (!state.result || !state.result.tree) return;
+    download(`guide-tree-${stamp()}.nwk`, state.result.tree.trim() + '\n', 'text/plain;charset=utf-8');
+  });
+
+  els.dlMatrix.addEventListener('click', () => {
+    if (!state.result) return;
+    const csv = matrixCsv(state.result.matrix, state.result.records);
+    if (!csv) return;
+    download(`percent-identity-${stamp()}.csv`, csv, 'text/csv;charset=utf-8');
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault();
+      align();
+    }
+  });
+
+  let resizeTimer = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      if (!state.result) return;
+      renderAlignment();
+    }, 180);
+  });
+
+  updatePreview();
+})();
+</script>
+</body>
+</html>
